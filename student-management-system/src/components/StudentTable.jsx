@@ -1,4 +1,3 @@
-import * as React from 'react';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
@@ -8,15 +7,30 @@ import TableRow from '@mui/material/TableRow';
 import Paper from '@mui/material/Paper';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
-import {deleteDoc, doc} from 'firebase/firestore'
+import {deleteDoc, doc, updateDoc} from 'firebase/firestore'
 import {db} from '../firebaseConfig'
-
+import UpdateStudentDialog from './UpdateStudentDialog';
+import { useState } from 'react';
 
 export default function StudentTable({students,setStudents}) {
+  const [editDialogOpen, setEditDialogOpen] = useState(false)
+  const [currentStudent, setCurrentStudent] = useState(null)
 
   //update student
   function handleUpdateStudent(studentId){
-    alert(studentId)
+    const student = students.find(s=>s.id === studentId)
+    setCurrentStudent(student)
+    setEditDialogOpen(true)
+  }
+
+  async function handleSaveStudent(){
+    const studentDoc = doc(db,'students',currentStudent.id)
+    await updateDoc(studentDoc,{
+      name: currentStudent.name,
+      age: currentStudent.age
+    })
+    setStudents(students.map((student)=>student.id === currentStudent.id ? currentStudent: student))
+    handleDialogClose()
   }
 
   //delete student
@@ -26,7 +40,23 @@ export default function StudentTable({students,setStudents}) {
     setStudents(students.filter((student)=>student.id !== studentId))
   }
 
+  // close update dialog
+  function handleDialogClose(){
+    setEditDialogOpen(false)
+    setCurrentStudent(null)
+  }
+
+  // handle chande in dialog values
+  function handleChange(event){
+    const {name, value} = event.target;
+    setCurrentStudent((prev)=>({
+      ...prev,
+      [name]: value
+    }))
+  }
+
   return (
+    <>
     <TableContainer component={Paper}>
       <Table sx={{ minWidth: 650 }} aria-label="simple table">
         <TableHead>
@@ -38,7 +68,7 @@ export default function StudentTable({students,setStudents}) {
           </TableRow>
         </TableHead>
         <TableBody>
-          {students.map((student) => (
+          {students.map((student)=>(
             <TableRow
               key={student.id}
               sx={{ '&:last-child td, &:last-child th': { border: 0 } }}
@@ -49,13 +79,21 @@ export default function StudentTable({students,setStudents}) {
               <TableCell align="center">{student.name}</TableCell>
               <TableCell align="center">{student.age}</TableCell>
               <TableCell align="center">
-                <EditIcon onclick={()=>handleUpdateStudent(student.id)} style={{cursor:'pointer', color:'#007bff', marginRight:10}}/>
-                 <DeleteIcon onclick={()=>handleDeleteStudent(student.id)} style={{cursor:'pointer', color:'crimson'}}/>
+                <EditIcon onClick={()=>handleUpdateStudent(student.id)} style={{cursor:'pointer', color:'#007bff', marginRight:10}}/>
+                 <DeleteIcon onClick={()=>handleDeleteStudent(student.id)} style={{cursor:'pointer', color:'crimson'}}/>
               </TableCell>
             </TableRow>
           ))}
         </TableBody>
       </Table>
     </TableContainer>
+    <UpdateStudentDialog 
+     editDialogOpen={editDialogOpen}
+     currentStudent={currentStudent} 
+     handleDialogClose={handleDialogClose}
+     handleChange={handleChange}
+     handleSaveStudent={handleSaveStudent}
+    />
+    </>
   );
 }
